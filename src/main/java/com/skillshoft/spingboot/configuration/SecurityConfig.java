@@ -1,7 +1,11 @@
 package com.skillshoft.spingboot.configuration;
 
+import com.skillshoft.spingboot.service.UserService;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
+import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
@@ -16,32 +20,39 @@ import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 @EnableWebSecurity
 public class SecurityConfig  extends WebSecurityConfigurerAdapter {
 
+    @Autowired
+    private UserService userService;
+
     @Bean
     public PasswordEncoder passwordEncoder(){
         return new BCryptPasswordEncoder();
     }
 
     @Bean
-    @Override
-    protected UserDetailsService userDetailsService(){
-        UserDetails user = User.withUsername("loonyuser").password("$2a$10$kP3gbi6FHKEPk5T5k.v5AeTkc.TerA.NDOggLTbdLUbMvAQ3cXKzu").roles("USER").build();
-        UserDetails admin = User.withUsername("loonyadmin").password("$2a$10$rsEEbJR.ftqcwbp0liATk..dcBQ9p5e4pWqHgO7Gi/89Tg6CQdVD6").roles("ADMIN").build();
+ public DaoAuthenticationProvider authenticationProvider(){
+        DaoAuthenticationProvider authenticationProvider = new DaoAuthenticationProvider();
 
-        return new InMemoryUserDetailsManager(user,admin);
+        authenticationProvider.setUserDetailsService(userService);
+        authenticationProvider.setPasswordEncoder(passwordEncoder());
+
+        return authenticationProvider;
+    }
+
+    @Override
+    protected void configure(AuthenticationManagerBuilder authenticationManagerBuilder) throws Exception{
+        authenticationManagerBuilder.authenticationProvider(authenticationProvider());
     }
 
     @Override
     protected void configure(HttpSecurity http) throws Exception {
-        http.authorizeRequests().antMatchers("/").permitAll()
-                .mvcMatchers("/admin")
-                .hasRole("ADMIN")
-                .anyRequest()
-                .authenticated()
-                .and()
-                .formLogin()
-                .loginPage("/login")
-                .permitAll()
-                .and()
-                .logout().permitAll();
+        http.authorizeRequests()
+            .antMatchers("/register").permitAll()
+            .antMatchers("/confirm").permitAll()
+            .anyRequest()
+            .authenticated()
+            .and()
+            .formLogin()
+            .loginPage("/login")
+            .permitAll();
     }
 }
